@@ -117,17 +117,40 @@ f.close()
 # print_dict()
 
 # preprocess query
-query = "تهران پیکان"
+query = "تهران !پیکان"
 query_tokens = word_tokenize(normalizer.normalize(query))
 
 for token in query_tokens:
     if token in stop_words_list:
       query_tokens.remove(token)
 
-final_query= list(map(lambda word: lemmatizer.lemmatize(word), query_tokens))
-print(final_query)
+not_tokens_list = []
+
+flag = False
+for token in query_tokens.copy():
+  if flag == True:
+    not_tokens_list.append(token)
+    flag == False
+    query_tokens.remove(token)
+  if token == "!":
+    flag = True
+    query_tokens.remove(token)
+
+
+
+
+final_query = list(map(lambda word: lemmatizer.lemmatize(word), query_tokens))
+not_final_query = list(map(lambda word: lemmatizer.lemmatize(word), not_tokens_list))
+print(final_query, not_final_query)
  
 #find result
+not_result = set()
+for query_word in not_final_query:
+  if query_word in words_dictionary:
+   
+    not_result.update(words_dictionary[query_word].get_postings_set_info())
+    
+
 
 result = set()
 
@@ -143,5 +166,5 @@ for query_word in final_query:
     else:
       result.intersection_update(words_dictionary[query_word].get_postings_set_info())
       # print(result)
-
+result.difference_update(not_result)
 print(result)
