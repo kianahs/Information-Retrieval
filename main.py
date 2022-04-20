@@ -9,6 +9,15 @@ class word_postings_element:
     self.frequency = frequency
     self.postings_set = set()
     self.postings_set.add(doc_element)
+  
+  def __str__(self):
+
+    postings_string = ""
+
+    for doc_item in self.postings_set:
+
+      postings_string += doc_item.__str__() 
+    return "frequency: "+str(self.frequency) + "\npostings list:\n" + postings_string
 
   def add_new_doc(self, new_doc_element):
     self.postings_set.add(new_doc_element)
@@ -23,6 +32,9 @@ class word_postings_element:
       if doc_item.get_doc_ID() == doc_ID:
         return doc_item
     return None
+ 
+ 
+    
 
 
 class doc_element:
@@ -37,6 +49,9 @@ class doc_element:
   
   def get_doc_ID(self):
     return self.doc_ID
+  
+  def __str__(self):
+      return str(self.doc_ID) + ":" + str(self.word_positions) + "\n"
 
 # def check_duplicate_word(words_list, word):
 
@@ -77,7 +92,12 @@ for doc_ID in all_documents:
     word_index += 1
   
   # words_list[news_ID] = data[news_ID]["content"]
-print(words_dictionary)
+
+for word in words_dictionary:
+  print("----------------------------------------------------\n")
+  print(word)
+  print(words_dictionary[word].__str__())
+  print("----------------------------------------------------\n")
 
 f.close()
 
