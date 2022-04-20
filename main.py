@@ -33,10 +33,6 @@ class word_postings_element:
         return doc_item
     return None
  
- 
-    
-
-
 class doc_element:
 
   def __init__(self, doc_ID, word_index):
@@ -53,13 +49,6 @@ class doc_element:
   def __str__(self):
       return str(self.doc_ID) + ":" + str(self.word_positions) + "\n"
 
-# def check_duplicate_word(words_list, word):
-
-#   for word_element in words_list:
-#       if word_element.get_word_name() == word:
-#         return True
-#   return False
-
    
 f = open('data/sample.json', encoding='utf-8')
 words_dictionary = {}
@@ -67,13 +56,23 @@ words_dictionary = {}
 all_documents = json.load(f)
 
 normalizer = Normalizer()
+lemmatizer = Lemmatizer()
 # tagger = POSTagger(model='resources/postagger.model')
+
+stop_words_list = stopwords_list()
 
 for doc_ID in all_documents: 
   tokens = word_tokenize(normalizer.normalize(all_documents[doc_ID]["content"]))
+  
+  for token in tokens:
+    if token in stop_words_list:
+      tokens.remove(token)
+
+  root_tokens = list(map(lambda word: lemmatizer.lemmatize(word), tokens))
+ 
   # print(tokens)
   word_index =  0
-  for word in tokens:
+  for word in root_tokens:
     if word in words_dictionary:
       related_doc_element = words_dictionary[word].get_doc_element(doc_ID)
 
@@ -92,6 +91,7 @@ for doc_ID in all_documents:
     word_index += 1
   
   # words_list[news_ID] = data[news_ID]["content"]
+
 
 for word in words_dictionary:
   print("----------------------------------------------------\n")
