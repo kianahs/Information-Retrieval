@@ -4,6 +4,7 @@ import re
 from unittest import result
 from hazm import *
 import json
+import re
  
 class word_postings_element:
   def __init__(self, word, frequency, doc_element):
@@ -73,6 +74,7 @@ def print_dict():
 
 
 f = open('data/sample.json', encoding='utf-8')
+# f = open('data/IR_data_news_12k.json', encoding='utf-8')
 words_dictionary = {}
 
 all_documents = json.load(f)
@@ -83,7 +85,8 @@ lemmatizer = Lemmatizer()
 
 stop_words_list = stopwords_list()
 
-for doc_ID in all_documents: 
+for doc_ID in all_documents:
+  # print(doc_ID) 
   tokens = word_tokenize(normalizer.normalize(all_documents[doc_ID]["content"]))
   
   for token in tokens:
@@ -117,7 +120,7 @@ f.close()
 # print_dict()
 
 # preprocess query
-query = "تهران !پیکان"
+query = input("enter your query\n")
 query_tokens = word_tokenize(normalizer.normalize(query))
 
 for token in query_tokens:
@@ -136,6 +139,10 @@ for token in query_tokens.copy():
     flag = True
     query_tokens.remove(token)
 
+qutation_indexes = [m.start() for m in re.finditer('"', query)]
+statement = "" 
+if qutation_indexes:
+  statement = query[qutation_indexes[0]+1:qutation_indexes[1]]
 
 
 
