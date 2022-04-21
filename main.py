@@ -133,8 +133,147 @@ def get_and_queries_result(final_query_combinations_list, words_dictionary):
   # print("res ", full_result)
   return full_result
 
-f = open('data/sample.json', encoding='utf-8')
-# f = open('data/IR_data_news_12k.json', encoding='utf-8')
+def preprocess_input_query():
+
+  # preprocess query
+  query = input("enter your query\n")
+  query_tokens = word_tokenize(normalizer.normalize(query))
+
+  for token in query_tokens:
+      if token in stop_words_list:
+        query_tokens.remove(token)
+
+  not_tokens_list = []
+
+  flag = False
+  for token in query_tokens.copy():
+    if flag == True:
+      not_tokens_list.append(token)
+      flag == False
+      query_tokens.remove(token)
+    if token == "!":
+      flag = True
+      query_tokens.remove(token)
+
+  qutation_indexes = [m.start() for m in re.finditer('"', query)]
+  statement = "" 
+  if qutation_indexes:
+    statement = query[qutation_indexes[0]+1:qutation_indexes[1]]
+
+  statement_tokens = word_tokenize(normalizer.normalize(statement))
+
+
+  final_query = list(map(lambda word: lemmatizer.lemmatize(word), query_tokens))
+  not_final_query = list(map(lambda word: lemmatizer.lemmatize(word), not_tokens_list))
+  statement_query = list(map(lambda word: lemmatizer.lemmatize(word), statement_tokens))
+
+  for item in statement_query:
+    final_query.remove(item)
+  if '«' in final_query or '»' in final_query:
+    final_query.remove('«')
+    final_query.remove('»')
+  print(final_query, not_final_query, statement_query)
+  return final_query, not_final_query, statement_query
+
+def find_results(words_dictionary):
+  #find result
+
+  final_query, not_final_query, statement_query = preprocess_input_query()
+
+  if len(statement_query) == 0 and len(not_final_query) == 0:
+      number_of_combinations = len(final_query)
+      ranked_result = {}
+      # print()
+      rank = 1
+    
+      for i in range(number_of_combinations, 0 , -1):
+        ranked_result["rank {}".format(rank)] = get_and_queries_result(list(combinations(final_query, i)), words_dictionary)
+        rank += 1
+
+      print(ranked_result)
+
+
+  else:
+
+    # not queries
+    not_result = set()
+    for query_word in not_final_query:
+      if query_word in words_dictionary:
+      
+        not_result.update(words_dictionary[query_word].get_postings_set_info())
+        
+
+    # and queries
+    result = set()
+
+    for query_word in final_query:
+
+      if query_word in words_dictionary:
+        # print("yesss")
+
+        if len(result) == 0:
+          result.update(words_dictionary[query_word].get_postings_set_info())
+          # print(result)
+          # print(words_dictionary[query_word].get_postings_set_info())
+        else:
+          result.intersection_update(words_dictionary[query_word].get_postings_set_info())
+          # print(result)
+
+      else:
+        result.clear()
+        break
+    # result.difference_update(not_result)
+
+    # print(result)
+
+    # statement queries
+    statement_result = set()
+    final_statement_result = set()
+    statement_result_info = set()
+    for query_word in statement_query:
+
+      if query_word in words_dictionary:
+        # print("yesss")
+
+        if len(statement_result) == 0:
+          statement_result.update(words_dictionary[query_word].get_postings_doc_IDs())
+          # print(statement_result)
+          # print(words_dictionary[query_word].get_postings_doc_IDs())
+        else:
+          statement_result.intersection_update(words_dictionary[query_word].get_postings_doc_IDs())
+          # print(statement_result)
+    if len(statement_result) > 0:
+
+      for result_id in statement_result:
+        words_positions_in_single_doc = []
+        for word_statement in statement_query:
+          words_positions_in_single_doc.append(list(words_dictionary[word_statement].get_doc_element(result_id).get_word_positions()))
+        # print(words_positions_in_single_doc)
+        if check_order_in_positions(words_positions_in_single_doc) == True:
+          print("order found in doc_id: {}".format(result_id))
+          final_statement_result.add(result_id)
+      
+      print("order check finished")
+
+    #processing final result
+
+    if len(final_statement_result) > 0:
+      for doc_id in final_statement_result:
+        statement_result_info.add(words_dictionary[statement_query[0]].get_doc_element(doc_id).get_doc_info())
+
+    if len(result) > 0 and len(final_statement_result)> 0:  
+      result.intersection_update(statement_result_info)
+    else:
+      result.update(statement_result_info)
+
+    result.difference_update(not_result)
+    print(result)
+
+
+
+# f = open('data/sample.json', encoding='utf-8')
+f = open('data/IR_data_news_12k.json', encoding='utf-8')
+
 words_dictionary = {}
 
 all_documents = json.load(f)
@@ -146,7 +285,7 @@ lemmatizer = Lemmatizer()
 stop_words_list = stopwords_list()
 
 for doc_ID in all_documents:
-  # print(doc_ID) 
+  print(doc_ID) 
   tokens = word_tokenize(normalizer.normalize(all_documents[doc_ID]["content"]))
   
   for token in tokens:
@@ -178,134 +317,6 @@ for doc_ID in all_documents:
   # words_list[news_ID] = data[news_ID]["content"]
 f.close()
 # print_dict()
-
-# preprocess query
-query = input("enter your query\n")
-query_tokens = word_tokenize(normalizer.normalize(query))
-
-for token in query_tokens:
-    if token in stop_words_list:
-      query_tokens.remove(token)
-
-not_tokens_list = []
-
-flag = False
-for token in query_tokens.copy():
-  if flag == True:
-    not_tokens_list.append(token)
-    flag == False
-    query_tokens.remove(token)
-  if token == "!":
-    flag = True
-    query_tokens.remove(token)
-
-qutation_indexes = [m.start() for m in re.finditer('"', query)]
-statement = "" 
-if qutation_indexes:
-  statement = query[qutation_indexes[0]+1:qutation_indexes[1]]
-
-statement_tokens = word_tokenize(normalizer.normalize(statement))
-
-
-final_query = list(map(lambda word: lemmatizer.lemmatize(word), query_tokens))
-not_final_query = list(map(lambda word: lemmatizer.lemmatize(word), not_tokens_list))
-statement_query = list(map(lambda word: lemmatizer.lemmatize(word), statement_tokens))
-
-for item in statement_query:
-  final_query.remove(item)
-if '«' in final_query or '»' in final_query:
-  final_query.remove('«')
-  final_query.remove('»')
-print(final_query, not_final_query, statement_query)
- 
-#find result
-
-if len(statement_query) == 0 and len(not_final_query) == 0:
-    number_of_combinations = len(final_query)
-    ranked_result = {}
-    # print()
-    rank = 1
-   
-    for i in range(number_of_combinations, 0 , -1):
-      ranked_result["rank {}".format(rank)] = get_and_queries_result(list(combinations(final_query, i)), words_dictionary)
-      rank += 1
-
-    print(ranked_result)
-
-
-else:
-
-  # not queries
-  not_result = set()
-  for query_word in not_final_query:
-    if query_word in words_dictionary:
-    
-      not_result.update(words_dictionary[query_word].get_postings_set_info())
-      
-
-  # and queries
-  result = set()
-
-  for query_word in final_query:
-
-    if query_word in words_dictionary:
-      # print("yesss")
-
-      if len(result) == 0:
-        result.update(words_dictionary[query_word].get_postings_set_info())
-        # print(result)
-        # print(words_dictionary[query_word].get_postings_set_info())
-      else:
-        result.intersection_update(words_dictionary[query_word].get_postings_set_info())
-        # print(result)
-
-    else:
-      result.clear()
-      break
-  # result.difference_update(not_result)
-
-  # print(result)
-
-  # statement queries
-  statement_result = set()
-  final_statement_result = set()
-  statement_result_info = set()
-  for query_word in statement_query:
-
-    if query_word in words_dictionary:
-      # print("yesss")
-
-      if len(statement_result) == 0:
-        statement_result.update(words_dictionary[query_word].get_postings_doc_IDs())
-        # print(statement_result)
-        # print(words_dictionary[query_word].get_postings_doc_IDs())
-      else:
-        statement_result.intersection_update(words_dictionary[query_word].get_postings_doc_IDs())
-        # print(statement_result)
-  if len(statement_result) > 0:
-
-    for result_id in statement_result:
-      words_positions_in_single_doc = []
-      for word_statement in statement_query:
-        words_positions_in_single_doc.append(list(words_dictionary[word_statement].get_doc_element(result_id).get_word_positions()))
-      # print(words_positions_in_single_doc)
-      if check_order_in_positions(words_positions_in_single_doc) == True:
-        print("order found in doc_id: {}".format(result_id))
-        final_statement_result.add(result_id)
-    
-    print("order check finished")
-
-  #processing final result
-
-  if len(final_statement_result) > 0:
-    for doc_id in final_statement_result:
-      statement_result_info.add(words_dictionary[statement_query[0]].get_doc_element(doc_id).get_doc_info())
-
-  if len(result) > 0 and len(final_statement_result)> 0:  
-    result.intersection_update(statement_result_info)
-  else:
-    result.update(statement_result_info)
-
-  result.difference_update(not_result)
-  print(result)
+while True:
+  find_results(words_dictionary)
 
