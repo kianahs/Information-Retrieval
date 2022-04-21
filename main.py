@@ -43,6 +43,14 @@ class word_postings_element:
       result.add(doc_element.get_doc_info())
     return result
  
+  def get_postings_doc_IDs(self):
+
+    result = set()
+    for doc_element in self.postings_set:
+      result.add(doc_element.get_doc_ID())
+    return result
+
+
 class doc_element:
 
   def __init__(self, doc_ID, word_index, doc_title, doc_url):
@@ -64,6 +72,9 @@ class doc_element:
   def get_doc_info(self):
     return "doc_ID:  " + str(self.doc_ID) + "   title:  " + str(self.doc_title) + "   Url:  " + str(self.doc_url)
 
+  def get_word_positions(self):
+    return self.word_positions
+
 def print_dict():
   for word in words_dictionary:
     print("----------------------------------------------------\n")
@@ -71,7 +82,30 @@ def print_dict():
     print(words_dictionary[word].__str__())
     print("----------------------------------------------------\n")
 
+def check_order_in_positions(positions_list):
 
+  count = len(positions_list)-1
+  for i in range(len(positions_list)):
+
+    if i != len(positions_list)-1:
+
+      for j in range(i+1, len(positions_list)):
+
+        for element in positions_list[i]:
+
+          if check_element_is_in_list(positions_list[j],element+1):
+            print("order!")
+            count -= 1
+            break
+
+  if count == 0:
+    return True
+  return False
+
+def check_element_is_in_list(taregt_list, element):
+  if element in taregt_list:
+    return True
+  return False
 
 f = open('data/sample.json', encoding='utf-8')
 # f = open('data/IR_data_news_12k.json', encoding='utf-8')
@@ -144,13 +178,22 @@ statement = ""
 if qutation_indexes:
   statement = query[qutation_indexes[0]+1:qutation_indexes[1]]
 
+statement_tokens = word_tokenize(normalizer.normalize(statement))
 
 
 final_query = list(map(lambda word: lemmatizer.lemmatize(word), query_tokens))
 not_final_query = list(map(lambda word: lemmatizer.lemmatize(word), not_tokens_list))
-print(final_query, not_final_query)
+statement_query = list(map(lambda word: lemmatizer.lemmatize(word), statement_tokens))
+
+for item in statement_query:
+  final_query.remove(item)
+if '«' in final_query or '»' in final_query:
+  final_query.remove('«')
+  final_query.remove('»')
+print(final_query, not_final_query, statement_query)
  
 #find result
+
 not_result = set()
 for query_word in not_final_query:
   if query_word in words_dictionary:
@@ -173,5 +216,48 @@ for query_word in final_query:
     else:
       result.intersection_update(words_dictionary[query_word].get_postings_set_info())
       # print(result)
+# result.difference_update(not_result)
+
+print(result)
+
+
+statement_result = set()
+final_statement_result = set()
+statement_result_info = set()
+for query_word in statement_query:
+
+  if query_word in words_dictionary:
+    # print("yesss")
+
+    if len(statement_result) == 0:
+      statement_result.update(words_dictionary[query_word].get_postings_doc_IDs())
+      # print(statement_result)
+      # print(words_dictionary[query_word].get_postings_doc_IDs())
+    else:
+      statement_result.intersection_update(words_dictionary[query_word].get_postings_doc_IDs())
+      # print(statement_result)
+if len(statement_result) > 0:
+
+  for result_id in statement_result:
+    words_positions_in_single_doc = []
+    for word_statement in statement_query:
+      words_positions_in_single_doc.append(list(words_dictionary[word_statement].get_doc_element(result_id).get_word_positions()))
+    # print(words_positions_in_single_doc)
+    if check_order_in_positions(words_positions_in_single_doc) == True:
+      print("order found in doc_id: {}".format(result_id))
+      final_statement_result.add(result_id)
+  
+  print("order check finished")
+
+if len(final_statement_result) > 0:
+  for doc_id in final_statement_result:
+    statement_result_info.add(words_dictionary[statement_query[0]].get_doc_element(doc_id).get_doc_info())
+
+if len(result) > 0 and len(final_statement_result)> 0:  
+  result.intersection_update(statement_result_info)
+else:
+  result.update(statement_result_info)
+
 result.difference_update(not_result)
 print(result)
+
