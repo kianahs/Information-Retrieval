@@ -5,6 +5,7 @@ from unittest import result
 from hazm import *
 import json
 import re
+from itertools import combinations
  
 class word_postings_element:
   def __init__(self, word, frequency, doc_element):
@@ -49,7 +50,6 @@ class word_postings_element:
     for doc_element in self.postings_set:
       result.add(doc_element.get_doc_ID())
     return result
-
 
 class doc_element:
 
@@ -106,6 +106,32 @@ def check_element_is_in_list(taregt_list, element):
   if element in taregt_list:
     return True
   return False
+
+def get_and_queries_result(final_query_combinations_list, words_dictionary):
+ 
+  full_result = set()
+ 
+  for final_query in final_query_combinations_list:
+      result = set()
+      for query_word in final_query:
+        # print(query_word)
+        if query_word in words_dictionary:
+          # print("yesss")
+
+          if len(result) == 0:
+            result.update(words_dictionary[query_word].get_postings_set_info())
+            # print(result)
+            # print(words_dictionary[query_word].get_postings_set_info())
+          else:
+            result.intersection_update(words_dictionary[query_word].get_postings_set_info())
+        else:
+          result.clear()
+          break
+        
+        full_result.update(result)
+
+  # print("res ", full_result)
+  return full_result
 
 f = open('data/sample.json', encoding='utf-8')
 # f = open('data/IR_data_news_12k.json', encoding='utf-8')
@@ -194,70 +220,92 @@ print(final_query, not_final_query, statement_query)
  
 #find result
 
-not_result = set()
-for query_word in not_final_query:
-  if query_word in words_dictionary:
+if len(statement_query) == 0 and len(not_final_query) == 0:
+    number_of_combinations = len(final_query)
+    ranked_result = {}
+    # print()
+    rank = 1
    
-    not_result.update(words_dictionary[query_word].get_postings_set_info())
-    
+    for i in range(number_of_combinations, 0 , -1):
+      ranked_result["rank {}".format(rank)] = get_and_queries_result(list(combinations(final_query, i)), words_dictionary)
+      rank += 1
+
+    print(ranked_result)
 
 
-result = set()
-
-for query_word in final_query:
-
-  if query_word in words_dictionary:
-    # print("yesss")
-
-    if len(result) == 0:
-      result.update(words_dictionary[query_word].get_postings_set_info())
-      # print(result)
-      # print(words_dictionary[query_word].get_postings_set_info())
-    else:
-      result.intersection_update(words_dictionary[query_word].get_postings_set_info())
-      # print(result)
-# result.difference_update(not_result)
-
-print(result)
-
-
-statement_result = set()
-final_statement_result = set()
-statement_result_info = set()
-for query_word in statement_query:
-
-  if query_word in words_dictionary:
-    # print("yesss")
-
-    if len(statement_result) == 0:
-      statement_result.update(words_dictionary[query_word].get_postings_doc_IDs())
-      # print(statement_result)
-      # print(words_dictionary[query_word].get_postings_doc_IDs())
-    else:
-      statement_result.intersection_update(words_dictionary[query_word].get_postings_doc_IDs())
-      # print(statement_result)
-if len(statement_result) > 0:
-
-  for result_id in statement_result:
-    words_positions_in_single_doc = []
-    for word_statement in statement_query:
-      words_positions_in_single_doc.append(list(words_dictionary[word_statement].get_doc_element(result_id).get_word_positions()))
-    # print(words_positions_in_single_doc)
-    if check_order_in_positions(words_positions_in_single_doc) == True:
-      print("order found in doc_id: {}".format(result_id))
-      final_statement_result.add(result_id)
-  
-  print("order check finished")
-
-if len(final_statement_result) > 0:
-  for doc_id in final_statement_result:
-    statement_result_info.add(words_dictionary[statement_query[0]].get_doc_element(doc_id).get_doc_info())
-
-if len(result) > 0 and len(final_statement_result)> 0:  
-  result.intersection_update(statement_result_info)
 else:
-  result.update(statement_result_info)
 
-result.difference_update(not_result)
-print(result)
+  # not queries
+  not_result = set()
+  for query_word in not_final_query:
+    if query_word in words_dictionary:
+    
+      not_result.update(words_dictionary[query_word].get_postings_set_info())
+      
+
+  # and queries
+  result = set()
+
+  for query_word in final_query:
+
+    if query_word in words_dictionary:
+      # print("yesss")
+
+      if len(result) == 0:
+        result.update(words_dictionary[query_word].get_postings_set_info())
+        # print(result)
+        # print(words_dictionary[query_word].get_postings_set_info())
+      else:
+        result.intersection_update(words_dictionary[query_word].get_postings_set_info())
+        # print(result)
+
+    else:
+      result.clear()
+      break
+  # result.difference_update(not_result)
+
+  # print(result)
+
+  # statement queries
+  statement_result = set()
+  final_statement_result = set()
+  statement_result_info = set()
+  for query_word in statement_query:
+
+    if query_word in words_dictionary:
+      # print("yesss")
+
+      if len(statement_result) == 0:
+        statement_result.update(words_dictionary[query_word].get_postings_doc_IDs())
+        # print(statement_result)
+        # print(words_dictionary[query_word].get_postings_doc_IDs())
+      else:
+        statement_result.intersection_update(words_dictionary[query_word].get_postings_doc_IDs())
+        # print(statement_result)
+  if len(statement_result) > 0:
+
+    for result_id in statement_result:
+      words_positions_in_single_doc = []
+      for word_statement in statement_query:
+        words_positions_in_single_doc.append(list(words_dictionary[word_statement].get_doc_element(result_id).get_word_positions()))
+      # print(words_positions_in_single_doc)
+      if check_order_in_positions(words_positions_in_single_doc) == True:
+        print("order found in doc_id: {}".format(result_id))
+        final_statement_result.add(result_id)
+    
+    print("order check finished")
+
+  #processing final result
+
+  if len(final_statement_result) > 0:
+    for doc_id in final_statement_result:
+      statement_result_info.add(words_dictionary[statement_query[0]].get_doc_element(doc_id).get_doc_info())
+
+  if len(result) > 0 and len(final_statement_result)> 0:  
+    result.intersection_update(statement_result_info)
+  else:
+    result.update(statement_result_info)
+
+  result.difference_update(not_result)
+  print(result)
 
