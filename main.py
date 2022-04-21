@@ -110,6 +110,7 @@ def check_element_is_in_list(taregt_list, element):
 def get_and_queries_result(final_query_combinations_list, words_dictionary):
  
   full_result = set()
+  print("query combination : ", final_query_combinations_list)
  
   for final_query in final_query_combinations_list:
       result = set()
@@ -127,10 +128,11 @@ def get_and_queries_result(final_query_combinations_list, words_dictionary):
         else:
           result.clear()
           break
+    
         
-        full_result.update(result)
+      full_result.update(result)
 
-  # print("res ", full_result)
+  print("res ", full_result)
   return full_result
 
 def preprocess_input_query():
