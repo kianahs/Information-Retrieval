@@ -162,16 +162,31 @@ def preprocess_input_query():
 
   statement_tokens = word_tokenize(normalizer.normalize(statement))
 
+  for token in statement_tokens.copy():
+      if token in stop_words_list:
+        statement_tokens.remove(token)
 
-  final_query = list(map(lambda word: lemmatizer.lemmatize(word), query_tokens))
-  not_final_query = list(map(lambda word: lemmatizer.lemmatize(word), not_tokens_list))
-  statement_query = list(map(lambda word: lemmatizer.lemmatize(word), statement_tokens))
+  final_query = list(map(lambda word: lemmatizer.lemmatize(re.sub(r'[^\w\s]','',word)), query_tokens))
+  not_final_query = list(map(lambda word: lemmatizer.lemmatize(re.sub(r'[^\w\s]','',word)), not_tokens_list))
+  statement_query = list(map(lambda word: lemmatizer.lemmatize(re.sub(r'[^\w\s]','',word)), statement_tokens))
+
+  while '' in final_query:
+    print("yes")
+    final_query.remove('')
+
 
   for item in statement_query:
-    final_query.remove(item)
+    if item in final_query:
+      final_query.remove(item)
+
   if '«' in final_query or '»' in final_query:
     final_query.remove('«')
     final_query.remove('»')
+
+  # final_query = list(map(lambda s: re.sub(r'[^\w\s]','',s), final_query))
+  # not_final_query = list(map(lambda s: re.sub(r'[^\w\s]','',s), not_final_query))
+  # statement_query = list(map(lambda s: re.sub(r'[^\w\s]','',s), statement_query))
+
   print(final_query, not_final_query, statement_query)
   return final_query, not_final_query, statement_query
 
@@ -191,8 +206,7 @@ def find_results(words_dictionary):
         rank += 1
 
       print(ranked_result)
-
-
+      
   else:
 
     # not queries
@@ -271,8 +285,8 @@ def find_results(words_dictionary):
 
 
 
-# f = open('data/sample.json', encoding='utf-8')
-f = open('data/IR_data_news_12k.json', encoding='utf-8')
+f = open('data/sample.json', encoding='utf-8')
+# f = open('data/IR_data_news_12k.json', encoding='utf-8')
 
 words_dictionary = {}
 
@@ -284,6 +298,9 @@ lemmatizer = Lemmatizer()
 
 stop_words_list = stopwords_list()
 
+# test = word_tokenize(normalizer.normalize("تحریم هسته‌ای"))
+# print(list(map(lambda word: lemmatizer.lemmatize(word), test)))
+
 for doc_ID in all_documents:
   print(doc_ID) 
   tokens = word_tokenize(normalizer.normalize(all_documents[doc_ID]["content"]))
@@ -292,11 +309,12 @@ for doc_ID in all_documents:
     if token in stop_words_list:
       tokens.remove(token)
 
-  root_tokens = list(map(lambda word: lemmatizer.lemmatize(word), tokens))
+  pure_root_tokens = list(map(lambda word: lemmatizer.lemmatize(re.sub(r'[^\w\s]','', word)), tokens))
+  # pure_root_tokens = list(map(lambda s: re.sub(r'[^\w\s]','',s), root_tokens))
  
   # print(tokens)
   word_index =  0
-  for word in root_tokens:
+  for word in pure_root_tokens:
     if word in words_dictionary:
       related_doc_element = words_dictionary[word].get_doc_element(doc_ID)
 
