@@ -6,7 +6,9 @@ from hazm import *
 import json
 import re
 from itertools import combinations
- 
+import matplotlib.pyplot as plt
+import math
+
 class word_postings_element:
   def __init__(self, word, frequency, doc_element):
     self.word = word
@@ -22,6 +24,10 @@ class word_postings_element:
 
       postings_string += doc_item.__str__() 
     return "frequency: "+str(self.frequency) + "\npostings list:\n" + postings_string
+
+  def get_frequency(self):
+
+    return self.frequency
 
   def add_new_doc(self, new_doc_element):
     self.postings_set.add(new_doc_element)
@@ -132,18 +138,14 @@ def get_and_queries_result(final_query_combinations_list, words_dictionary):
         
       full_result.update(result)
 
-  print("res ", full_result)
+  # print("res ", full_result)
   return full_result
 
-def preprocess_input_query():
+def preprocess_input_query(garbage):
 
   # preprocess query
   query = input("enter your query\n")
   query_tokens = word_tokenize(normalizer.normalize(query))
-
-  for token in query_tokens:
-      if token in stop_words_list:
-        query_tokens.remove(token)
 
   not_tokens_list = []
 
@@ -164,26 +166,60 @@ def preprocess_input_query():
 
   statement_tokens = word_tokenize(normalizer.normalize(statement))
 
-  for token in statement_tokens.copy():
-      if token in stop_words_list:
-        statement_tokens.remove(token)
+  for item in statement_tokens:
+    if item in query_tokens:
+      query_tokens.remove(item)
 
-  final_query = list(map(lambda word: lemmatizer.lemmatize(re.sub(r'[^\w\s]','',word)), query_tokens))
-  not_final_query = list(map(lambda word: lemmatizer.lemmatize(re.sub(r'[^\w\s]','',word)), not_tokens_list))
-  statement_query = list(map(lambda word: lemmatizer.lemmatize(re.sub(r'[^\w\s]','',word)), statement_tokens))
+  statement_tokens_without_stops = []
+  for token in statement_tokens:
+      token = re.sub(r'[^\w\s]','',token)
+      if token not in stop_words_list:
+        statement_tokens_without_stops.append(token)
+
+  for token in statement_tokens_without_stops:
+    for s in garbage:
+      if s in token:
+        print("token garbage", token)
+        statement_tokens_without_stops.remove(token)
+        break
+  
+  query_tokens_without_stops = []
+  for token in query_tokens:
+      token = re.sub(r'[^\w\s]','',token)
+      if token not in stop_words_list:
+        query_tokens_without_stops.append(token)
+
+  for token in query_tokens_without_stops:
+    for s in garbage:
+      if s in token:
+        print("token garbage", token)
+        query_tokens_without_stops.remove(token)
+        break
+
+  not_tokens_without_stops = []
+  for token in not_tokens_list:
+      token = re.sub(r'[^\w\s]','',token)
+      if token not in stop_words_list:
+        not_tokens_without_stops.append(token)
+
+  for token in not_tokens_without_stops:
+    for s in garbage:
+      if s in token:
+        print("token garbage", token)
+        not_tokens_without_stops.remove(token)
+        break
+
+  final_query = list(map(lambda word: lemmatizer.lemmatize(word), query_tokens_without_stops))
+  not_final_query = list(map(lambda word: lemmatizer.lemmatize(word), not_tokens_without_stops))
+  statement_query = list(map(lambda word: lemmatizer.lemmatize(word), statement_tokens_without_stops))
 
   while '' in final_query:
-    print("yes")
+    # print("yes")
     final_query.remove('')
 
-
-  for item in statement_query:
-    if item in final_query:
-      final_query.remove(item)
-
-  if '«' in final_query or '»' in final_query:
-    final_query.remove('«')
-    final_query.remove('»')
+  # if '«' in final_query or '»' in final_query:
+  #   final_query.remove('«')
+  #   final_query.remove('»')
 
   # final_query = list(map(lambda s: re.sub(r'[^\w\s]','',s), final_query))
   # not_final_query = list(map(lambda s: re.sub(r'[^\w\s]','',s), not_final_query))
@@ -192,10 +228,10 @@ def preprocess_input_query():
   print(final_query, not_final_query, statement_query)
   return final_query, not_final_query, statement_query
 
-def find_results(words_dictionary):
+def find_results(words_dictionary, garbage):
   #find result
 
-  final_query, not_final_query, statement_query = preprocess_input_query()
+  final_query, not_final_query, statement_query = preprocess_input_query(garbage)
 
   if len(statement_query) == 0 and len(not_final_query) == 0:
       number_of_combinations = len(final_query)
@@ -285,13 +321,42 @@ def find_results(words_dictionary):
     result.difference_update(not_result)
     print(result)
 
+def calculate_zipf(words_dictionary):
+  # zipf part
+  word_frequency = {}
+
+  for word in words_dictionary:
+    word_frequency[word] = words_dictionary[word].get_frequency()
+
+  # print(word_frequency)
+  keys = list(word_frequency.keys())
+  values = list(word_frequency.values())
+  values.sort(key=lambda v: v, reverse=True)
+
+  l3=list(map(lambda value: math.log(value, 10), values))
+  l =[]
+  l2 =[]
+
+  for i in range(len(keys)):
+      l.append(math.log(i+1, 10))
+      l2.append(math.log(values[0]/(i+1), 10))
+
+  # for item in word_frequency:
+  #   print(item, word_frequency[item])
+
+  plt.plot(l, l2)
+  plt.plot(l, l3)
+  plt.show()
 
 
 f = open('data/sample.json', encoding='utf-8')
 # f = open('data/IR_data_news_12k.json', encoding='utf-8')
 
 words_dictionary = {}
-
+garbage = ['۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '۰', 'a', 'b', 'c', 'd', 'e', 't', 'o', 'p', 'x', 'y', 'z',
+           'https', '،', '.', ':', '**', '-', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '?', '**', '[', ']',
+           '(', ')', '://', '/?', '=', '&', '/', '؛', '&', '/', '.', '_', '،', '?**', ":", "%", ">>", "<<", "!","#"
+           "*", "«", "»"]
 all_documents = json.load(f)
 
 normalizer = Normalizer()
@@ -307,12 +372,29 @@ for doc_ID in all_documents:
   print(doc_ID) 
   tokens = word_tokenize(normalizer.normalize(all_documents[doc_ID]["content"]))
   
-  for token in tokens:
-    if token in stop_words_list:
-      tokens.remove(token)
+ #for Zipf calculation ################################
+  # pure_root_tokens = list(map(lambda word: lemmatizer.lemmatize(word), tokens))
 
-  pure_root_tokens = list(map(lambda word: lemmatizer.lemmatize(re.sub(r'[^\w\s]','', word)), tokens))
-  # pure_root_tokens = list(map(lambda s: re.sub(r'[^\w\s]','',s), root_tokens))
+  # removing stop words ##########################################
+  # 1. stop words 2.lemmitizer
+
+  tokens_without_stop_words = []
+
+  for token in tokens:
+    token = re.sub(r'[^\w\s]','', token)
+    if token not in stop_words_list:
+      tokens_without_stop_words.append(token)
+   
+  for token in tokens_without_stop_words:
+    for s in garbage:
+      if s in token:
+        # print("token garbage", token)
+        tokens_without_stop_words.remove(token)
+        break
+
+  pure_root_tokens = list(map(lambda word: lemmatizer.lemmatize(word), tokens_without_stop_words))
+
+  ##############################################################
  
   # print(tokens)
   word_index =  0
@@ -337,6 +419,11 @@ for doc_ID in all_documents:
   # words_list[news_ID] = data[news_ID]["content"]
 f.close()
 # print_dict()
-while True:
-  find_results(words_dictionary)
 
+# answering queries part
+while True:
+  find_results(words_dictionary,garbage)
+
+#Zipf
+
+# calculate_zipf(words_dictionary)
