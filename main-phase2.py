@@ -56,6 +56,8 @@ def creating_dictionary_and_vectors():
   pickle.dump(all_news, file) 
   file.close()
 
+  return words_dictionary, all_news
+
 def get_data_from_files():
 
   #oppening data files 
@@ -71,7 +73,8 @@ def get_data_from_files():
 
 
 
-words_dictionary, all_news = get_data_from_files()
+# words_dictionary, all_news = get_data_from_files()
+words_dictionary, all_news = creating_dictionary_and_vectors()
 
 #getting query
 

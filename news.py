@@ -41,17 +41,34 @@ class NewsDocument:
   def find_cosine_distance_from_query(self, query_vector):
 
   
-    return np.dot(self.vector,query_vector) / (LA.norm(self.vector) * LA.norm(query_vector))
+    # return np.dot(self.vector,query_vector) / (LA.norm(self.vector) * LA.norm(query_vector))
 
+    # index elimination
+    indexes_of_none_zero_terms = np.where(query_vector == 0)[0]
+    cosine = 0
+    for index in indexes_of_none_zero_terms:
+      cosine += query_vector[index] * self.vector[index]
+    cosine = cosine / (LA.norm(np.nonzero(self.vector)) * LA.norm(np.nonzero(query_vector)))
+    return cosine
 
   def find_cosine_distances_from_all_news(self, all_news):
 
+      # self.news_cosines_distances = {}
+
+      # for news in all_news:
+      #   news_vector = news.get_vector()
+      #   self.news_cosines_distances[news] = np.dot(self.vector,news_vector) / (LA.norm(self.vector) * LA.norm(news_vector))
+
+      # with index elimination 
+      indexes_of_none_zero_terms = np.where(self.vector == 0)[0]
       self.news_cosines_distances = {}
 
       for news in all_news:
+        cosine = 0
         news_vector = news.get_vector()
-        self.news_cosines_distances[news] = np.dot(self.vector,news_vector) / (LA.norm(self.vector) * LA.norm(news_vector))
-
+        for index in indexes_of_none_zero_terms:
+          cosine += news_vector[index] * self.vector[index]
+        cosine = cosine / (LA.norm(np.nonzero(self.vector)) * LA.norm(np.nonzero(news_vector)))
 
   def get_top_nearest_news(self, count):
     # print(self.title)
