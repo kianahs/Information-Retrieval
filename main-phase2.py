@@ -7,7 +7,21 @@ import pickle
 from hazm import *
 from news import NewsDocument
 
+from unittest import result
+from itertools import combinations
+import matplotlib.pyplot as plt
+import math
+import pickle
 
+garbage = ['۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '۰', 'a', 'b', 'c', 'd', 'e', 't', 'o', 'p', 'x', 'y', 'z',
+           'https', '،', '.', ':', '**', '-', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '?', '**', '[', ']',
+           '(', ')', '://', '/?', '=', '&', '/', '؛', '&', '/', '.', '_', '،', '?**', ":", "%", ">>", "<<", "!","#"
+           "*", "«", "»"]
+
+normalizer = Normalizer()
+lemmatizer = Lemmatizer()
+stemmer = Stemmer()
+stop_words_list = stopwords_list()
 
 def creating_dictionary_and_vectors():
 
@@ -15,7 +29,7 @@ def creating_dictionary_and_vectors():
   f = open('data/IR_data_news_12k.json', encoding='utf-8')
   all_documents = json.load(f)
   all_docs_count = len(all_documents)
-  # print(all_docs_count)
+  print(all_docs_count)
   all_news = []
 
   words_dictionary = {} # term - document frequency
@@ -25,8 +39,10 @@ def creating_dictionary_and_vectors():
   for doc_ID in all_documents:
   
     print(doc_ID) 
-    tokens = word_tokenize(all_documents[doc_ID]["content"])
-    all_news.append(NewsDocument(doc_ID, tokens,all_docs_count))
+    initial_tokens = word_tokenize(normalizer.normalize(all_documents[doc_ID]["content"]))
+    tokens = preprocess_tokens(initial_tokens)
+    all_news.append(NewsDocument(doc_ID, tokens, all_docs_count, all_documents[doc_ID]["url"]))
+    
     for word in tokens:
       if word in words_dictionary:
 
@@ -37,7 +53,7 @@ def creating_dictionary_and_vectors():
       
        words_dictionary[word] = 1
     
-    previous_doc_ID = doc_ID
+      previous_doc_ID = doc_ID
 
     # print(words_dictionary)
   i = 0
@@ -61,35 +77,127 @@ def creating_dictionary_and_vectors():
 def get_data_from_files():
 
   #oppening data files 
+  print("getting dictionary ......")
   file = open("pickleFiles/words_dictionary.pkl", "rb")
   words_dictionary = pickle.load(file)
   file.close()
+  print("getting documents ......")
   file = open("pickleFiles/all_news.pkl", "rb")
   all_news = pickle.load(file)
   file.close()
-  return words_dictionary, all_news
+  # print("getting champion list ......\n")
+  # file = open("pickleFiles/champion_listt.pkl", "rb")
+  # term_champion_list = pickle.load(file)
+  # file.close()
+  print("Done \n")
 
+  return words_dictionary, all_news#, term_champion_list
 
-
-
-
-# words_dictionary, all_news = get_data_from_files()
-words_dictionary, all_news = creating_dictionary_and_vectors()
-
-#getting query
-
-
-while(True):
-  input_query = input("Please enter your query\n")
-  if input_query == 'exit':
-    break
-  query_object = NewsDocument(-1, word_tokenize(input_query), len(all_news))  # should change N ??????????????????
-  query_object.create_vector(dictionary = words_dictionary)
+def search_query(input_query, count, dictionary, all_news):
+  tokens = preprocess_tokens(word_tokenize(normalizer.normalize(input_query)))
+  query_object = NewsDocument(-1, tokens, len(all_news), None)  # should change N ??????????????????
+  query_object.create_vector(dictionary)
   query_object.find_cosine_distances_from_all_news(all_news)
-  count = input("Enter number of k for showing top k results\n")
-  top_news,cosines = query_object.get_top_nearest_news(count=int(count))
+  # count = input("Enter number of k for showing top k results\n")
+  top_news,cosines,urls = query_object.get_top_nearest_news(count=int(count))
+  return top_news,cosines,urls
 
+def create_champions_list(count, words_dictionary, all_news):
+  term_champion_list = {}
+  print("creating champions list ...")
   i=0
-  for news in top_news:
-    print("docID: {}  cosine: {}".format(news.get_doc_ID(), cosines[i]))
-    i+=1
+  for term in list(words_dictionary):
+    top_news, _ , urls = search_query(term, count, words_dictionary, all_news)
+    term_champion_list[term] = top_news
+    print(term, i)
+    i += 1
+  
+  file = open("champion_list.pkl","wb")
+  pickle.dump(term_champion_list, file) 
+  file.close()
+  print("Done \n")
+
+def search_using_champion_list(input_query, words_dictionary, term_champion_list):
+
+  # print("getting champion list ......\n")
+  # file = open("pickleFiles/champion_list.pkl", "rb")
+  # term_champion_list = pickle.load(file)
+  # file.close()
+  related_news = []
+  
+  query_tokens = preprocess_tokens(word_tokenize(normalizer.normalize(input_query)))
+  
+  for token in query_tokens:
+    related_news.extend(term_champion_list[token])
+
+
+  query_object = NewsDocument(-1, query_tokens, len(related_news), None)  # should change N ??????????????????
+  query_object.create_vector(words_dictionary)
+  query_object.find_cosine_distances_from_all_news(related_news)
+  count = input("Enter number of k for showing top k results\n")
+  top_news,cosines,urls = query_object.get_top_nearest_news(count=int(count))
+  return top_news,cosines,urls
+
+def preprocess_tokens(tokens):
+
+  tokens_without_stop_words = []
+
+  for token in tokens:
+    token = re.sub(r'[^\w\s]','', token)
+    if token not in stop_words_list:
+      tokens_without_stop_words.append(token)
+   
+  for token in tokens_without_stop_words:
+    for s in garbage:
+      if s in token:
+        # print("token garbage", token)
+        tokens_without_stop_words.remove(token)
+        break
+
+  pure_root_tokens = list(map(lambda word: lemmatizer.lemmatize(stemmer.stem(word)), tokens_without_stop_words))
+ 
+  return pure_root_tokens
+
+
+
+if __name__ == "__main__":
+
+  # words_dictionary, all_news, term_champion_list = get_data_from_files()
+  words_dictionary, all_news = get_data_from_files()
+  # words_dictionary, all_news = creating_dictionary_and_vectors()
+  print(len(words_dictionary))
+  # create_champions_list(10, words_dictionary, all_news)
+
+  term_champion_list={}
+
+  #getting query
+  
+  
+
+  while(True):
+    input_query = input("Please enter your query\n")
+    if input_query == 'exit':
+      break
+    method = input("1.normal 2.champion\n")
+    top_news, cosines, urls = None, None, None
+
+    if int(method) == 1:
+      count = input("Enter number of k for showing top k results\n")
+      top_news,cosines,urls = search_query(input_query, count, words_dictionary, all_news)
+
+      # query_object = NewsDocument(-1, preprocess_tokens(word_tokenize(normalizer.normalize(input_query))), len(all_news), None)  # should change N ??????????????????
+      # query_object.create_vector(words_dictionary)
+      # query_object.find_cosine_distances_from_all_news(all_news)
+      # count = input("Enter number of k for showing top k results\n")
+      # top_news,cosines,urls = query_object.get_top_nearest_news(count=int(count))
+    elif int(method) == 2:
+      top_news,cosines,urls = search_using_champion_list(input_query, words_dictionary, term_champion_list)
+
+    i=0
+    for news in top_news:
+      print("docID: {}  cosine: {}  url: {}".format(news.get_doc_ID(), cosines[i], urls[i]))
+      i+=1
+
+
+
+  

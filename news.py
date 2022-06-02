@@ -1,22 +1,31 @@
 import numpy as np
 from heapq import nsmallest, nlargest
-from numpy import linalg as LA
+from numpy import NaN, linalg as LA
 import math
 
 class NewsDocument:
  
 
-  def __init__(self, doc_ID, tokens, all_docs_count):
+  def __init__(self, doc_ID, tokens, all_docs_count, url):
 
     self.doc_ID = doc_ID
     self.tokens = tokens
     self.docs_count = all_docs_count
-
+    self.url = url
 
     
   def calculate_tfidf(self, word, document_frequncy_of_word):
     term_frequency = self.tokens.count(word)
-    return (1 + math.log(term_frequency)) * math.log((self.docs_count/document_frequncy_of_word)) if term_frequency > 0 else 0
+    tfidf = 0
+    if term_frequency > 0:
+      tfidf = (1 + math.log(term_frequency)) * math.log((self.docs_count/document_frequncy_of_word))
+
+    # if tfidf <0 :
+    #   print("tfidf ", tfidf)
+    
+    # if  tfidf < 0:
+    #   print(tfidf)
+    return  tfidf
   
   def create_vector(self, dictionary):
     self.vector_list = []
@@ -25,6 +34,8 @@ class NewsDocument:
       self.vector_list.append(self.calculate_tfidf(key, dictionary[key]))
     
     self.vector = np.array(self.vector_list)
+
+    # print(self.vector)
     
     # if not np.any(self.vector):
     #   return -1
@@ -37,6 +48,8 @@ class NewsDocument:
 
     return self.vector
 
+  def get_url(self):
+    return self.url
 
   def find_cosine_distance_from_query(self, query_vector):
 
@@ -51,32 +64,43 @@ class NewsDocument:
     cosine = cosine / (LA.norm(np.nonzero(self.vector)) * LA.norm(np.nonzero(query_vector)))
     return cosine
 
-  def find_cosine_distances_from_all_news(self, all_news):
+  def find_cosine_distances_from_all_news(self, all_news):  ############### Why is very slow
 
-      # self.news_cosines_distances = {}
-
-      # for news in all_news:
-      #   news_vector = news.get_vector()
-      #   self.news_cosines_distances[news] = np.dot(self.vector,news_vector) / (LA.norm(self.vector) * LA.norm(news_vector))
-
-      # with index elimination 
-      indexes_of_none_zero_terms = np.where(self.vector == 0)[0]
       self.news_cosines_distances = {}
 
       for news in all_news:
-        cosine = 0
+        # print(news)
+        # print("SALAMMMMMM")
         news_vector = news.get_vector()
-        for index in indexes_of_none_zero_terms:
-          cosine += news_vector[index] * self.vector[index]
-        cosine = cosine / (LA.norm(np.nonzero(self.vector)) * LA.norm(np.nonzero(news_vector)))
+        # print("news vector \n {}".format(news_vector))
+        self.news_cosines_distances[news] = np.dot(self.vector,news_vector) / (LA.norm(self.vector) * LA.norm(news_vector))
 
+      # # with index elimination 
+      # indexes_of_none_zero_terms = np.where(self.vector == 0)[0]
+      # self.news_cosines_distances = {}
+
+      # for news in all_news:
+      #   cosine = 0
+      #   print("INNN")
+      #   news_vector = news.get_vector()
+      #   for index in indexes_of_none_zero_terms:
+      #     cosine += news_vector[index] * self.vector[index]
+      #   norm = LA.norm(np.nonzero(self.vector))
+      #   if norm!=0:
+      #     cosine = cosine / (norm * LA.norm(np.nonzero(news_vector)))
+      #   else:
+      #     cosine = NaN
+      #   self.news_cosines_distances[news]=cosine
+        
   def get_top_nearest_news(self, count):
     # print(self.title)
     top_news = nlargest(count, self.news_cosines_distances, key = self.news_cosines_distances.get)
     # print(top_journals.values())
     # print(top_journals[0].get_title())
     values =[]
+    urls = []
     for news in top_news:
       values.append(self.news_cosines_distances[news])
+      urls.append(news.get_url())
 
-    return top_news,values
+    return top_news,values, urls
