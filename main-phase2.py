@@ -33,27 +33,30 @@ def creating_dictionary_and_vectors():
   all_news = []
 
   words_dictionary = {} # term - document frequency
-
-  previous_doc_ID = -1
+  term_postings = {} # term - postings list
+  # previous_doc_ID = -1
 
   for doc_ID in all_documents:
   
     print(doc_ID) 
     initial_tokens = word_tokenize(normalizer.normalize(all_documents[doc_ID]["content"]))
     tokens = preprocess_tokens(initial_tokens)
-    all_news.append(NewsDocument(doc_ID, tokens, all_docs_count, all_documents[doc_ID]["url"]))
+    doc_object = NewsDocument(doc_ID, tokens, all_docs_count, all_documents[doc_ID]["url"])
+    all_news.append(doc_object)
     
     for word in tokens:
       if word in words_dictionary:
 
-        if previous_doc_ID != doc_ID:
-          words_dictionary[word] += 1
+        
+        term_postings[word].add(doc_object)
+        words_dictionary[word] = len(term_postings[word])
 
       else:
       
-       words_dictionary[word] = 1
-    
-      previous_doc_ID = doc_ID
+       term_postings[word] = set()
+       term_postings[word].add(doc_object)
+       words_dictionary[word] = len(term_postings[word])
+      #  previous_doc_ID = doc_ID
 
     # print(words_dictionary)
   i = 0
@@ -71,8 +74,11 @@ def creating_dictionary_and_vectors():
   file = open("all_news.pkl","wb")
   pickle.dump(all_news, file) 
   file.close()
+  file = open("term_postings.pkl","wb")
+  pickle.dump(term_postings, file) 
+  file.close()
 
-  return words_dictionary, all_news
+  return words_dictionary, all_news, term_postings
 
 def get_data_from_files():
 
@@ -85,29 +91,34 @@ def get_data_from_files():
   file = open("pickleFiles/all_news.pkl", "rb")
   all_news = pickle.load(file)
   file.close()
-  # print("getting champion list ......\n")
-  # file = open("pickleFiles/champion_listt.pkl", "rb")
-  # term_champion_list = pickle.load(file)
-  # file.close()
+  print("getting champion list ......\n")
+  file = open("pickleFiles/champion_list.pkl", "rb")
+  term_champion_list = pickle.load(file)
+  file.close()
+  print("getting term postings ......\n")
+  file = open("pickleFiles/term_postings.pkl", "rb")
+  term_postings = pickle.load(file)
+  file.close()
   print("Done \n")
 
-  return words_dictionary, all_news#, term_champion_list
+  return words_dictionary, all_news, term_champion_list, term_postings
 
-def search_query(input_query, count, dictionary, all_news):
+def search_query(input_query, count, dictionary, all_news, term_postings):
   tokens = preprocess_tokens(word_tokenize(normalizer.normalize(input_query)))
   query_object = NewsDocument(-1, tokens, len(all_news), None)  # should change N ??????????????????
   query_object.create_vector(dictionary)
-  query_object.find_cosine_distances_from_all_news(all_news)
+  query_object.find_cosine_distances_from_all_news(all_news, term_postings)
   # count = input("Enter number of k for showing top k results\n")
   top_news,cosines,urls = query_object.get_top_nearest_news(count=int(count))
+  # print(cosines)
   return top_news,cosines,urls
 
-def create_champions_list(count, words_dictionary, all_news):
+def create_champions_list(count, words_dictionary, all_news, term_postings):
   term_champion_list = {}
   print("creating champions list ...")
   i=0
   for term in list(words_dictionary):
-    top_news, _ , urls = search_query(term, count, words_dictionary, all_news)
+    top_news, _ , urls = search_query(term, count, words_dictionary, all_news, term_postings)
     term_champion_list[term] = top_news
     print(term, i)
     i += 1
@@ -117,7 +128,7 @@ def create_champions_list(count, words_dictionary, all_news):
   file.close()
   print("Done \n")
 
-def search_using_champion_list(input_query, words_dictionary, term_champion_list):
+def search_using_champion_list(input_query, words_dictionary, all_news, term_champion_list):
 
   # print("getting champion list ......\n")
   # file = open("pickleFiles/champion_list.pkl", "rb")
@@ -131,11 +142,12 @@ def search_using_champion_list(input_query, words_dictionary, term_champion_list
     related_news.extend(term_champion_list[token])
 
 
-  query_object = NewsDocument(-1, query_tokens, len(related_news), None)  # should change N ??????????????????
+  query_object = NewsDocument(-1, query_tokens, len(all_news), None)  # should change N ??????????????????
   query_object.create_vector(words_dictionary)
-  query_object.find_cosine_distances_from_all_news(related_news)
+  query_object.find_cosine_distances_from_related_news(related_news)
   count = input("Enter number of k for showing top k results\n")
   top_news,cosines,urls = query_object.get_top_nearest_news(count=int(count))
+  
   return top_news,cosines,urls
 
 def preprocess_tokens(tokens):
@@ -162,17 +174,18 @@ def preprocess_tokens(tokens):
 
 if __name__ == "__main__":
 
-  # words_dictionary, all_news, term_champion_list = get_data_from_files()
-  words_dictionary, all_news = get_data_from_files()
-  # words_dictionary, all_news = creating_dictionary_and_vectors()
+  words_dictionary, all_news, term_champion_list, term_postings = get_data_from_files()
+  # words_dictionary, all_news = get_data_from_files()
+  # words_dictionary, all_news, term_postings = creating_dictionary_and_vectors()
   print(len(words_dictionary))
-  # create_champions_list(10, words_dictionary, all_news)
+  # create_champions_list(20, words_dictionary, all_news, term_postings)
 
-  term_champion_list={}
+  # term_champion_list={}
 
   #getting query
   
-  
+  # for doc in term_postings['پیکان']:
+  #   print(doc.get_doc_ID())
 
   while(True):
     input_query = input("Please enter your query\n")
@@ -183,7 +196,7 @@ if __name__ == "__main__":
 
     if int(method) == 1:
       count = input("Enter number of k for showing top k results\n")
-      top_news,cosines,urls = search_query(input_query, count, words_dictionary, all_news)
+      top_news,cosines,urls = search_query(input_query, count, words_dictionary, all_news, term_postings)
 
       # query_object = NewsDocument(-1, preprocess_tokens(word_tokenize(normalizer.normalize(input_query))), len(all_news), None)  # should change N ??????????????????
       # query_object.create_vector(words_dictionary)
@@ -191,8 +204,8 @@ if __name__ == "__main__":
       # count = input("Enter number of k for showing top k results\n")
       # top_news,cosines,urls = query_object.get_top_nearest_news(count=int(count))
     elif int(method) == 2:
-      top_news,cosines,urls = search_using_champion_list(input_query, words_dictionary, term_champion_list)
-
+      top_news,cosines,urls = search_using_champion_list(input_query, words_dictionary, all_news, term_champion_list)
+      # continue
     i=0
     for news in top_news:
       print("docID: {}  cosine: {}  url: {}".format(news.get_doc_ID(), cosines[i], urls[i]))

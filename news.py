@@ -23,8 +23,8 @@ class NewsDocument:
     # if tfidf <0 :
     #   print("tfidf ", tfidf)
     
-    # if  tfidf < 0:
-    #   print(tfidf)
+    if  tfidf < 0:
+      print("negativeeeeeeeeeeeeeee")
     return  tfidf
   
   def create_vector(self, dictionary):
@@ -64,7 +64,60 @@ class NewsDocument:
     cosine = cosine / (LA.norm(np.nonzero(self.vector)) * LA.norm(np.nonzero(query_vector)))
     return cosine
 
-  def find_cosine_distances_from_all_news(self, all_news):  ############### Why is very slow
+  def find_cosine_distances_from_all_news(self, all_news, term_postings):  ############### Why is very slow
+
+      # self.news_cosines_distances = {}
+
+      # for news in all_news:
+      #   # print(news)
+      #   # print("SALAMMMMMM")
+      #   news_vector = news.get_vector()
+      #   # print("news vector \n {}".format(news_vector))
+      #   self.news_cosines_distances[news] = np.dot(self.vector,news_vector) / (LA.norm(self.vector) * LA.norm(news_vector))
+     
+      # with new combination method 
+    
+      self.news_cosines_distances = {}
+     
+      related_news = set()
+      for term in self.tokens:
+        if term in list(term_postings):
+          related_news.update(term_postings[term])
+
+
+      for news in related_news:
+        # print(news)
+        # print("SALAMMMMMM")
+        news_vector = news.get_vector()
+        # print("news vector \n {}".format(news_vector))
+        self.news_cosines_distances[news] = np.dot(self.vector,news_vector) / (LA.norm(self.vector) * LA.norm(news_vector))
+
+
+
+
+      # # with index elimination 
+      # indexes_of_none_zero_terms = np.where(self.vector == 0)[0]
+      # self.news_cosines_distances = {}
+     
+      # related_news = set()
+      # for term in self.tokens:
+      #     related_news.update(term_postings[term])
+
+
+      # for news in related_news:
+      #   cosine = 0
+      #   # print("INNN")
+      #   news_vector = news.get_vector()
+      #   for index in indexes_of_none_zero_terms:
+      #     cosine += news_vector[index] * self.vector[index]
+      #   norm = LA.norm(np.nonzero(self.vector))
+      #   if norm!=0:
+      #     cosine = cosine / (norm * LA.norm(np.nonzero(news_vector)))
+      #   else:
+      #     cosine = NaN
+      #   self.news_cosines_distances[news]=cosine
+
+  def find_cosine_distances_from_related_news(self, all_news):  ############### Why is very slow
 
       self.news_cosines_distances = {}
 
@@ -78,10 +131,11 @@ class NewsDocument:
       # # with index elimination 
       # indexes_of_none_zero_terms = np.where(self.vector == 0)[0]
       # self.news_cosines_distances = {}
-
+     
+  
       # for news in all_news:
       #   cosine = 0
-      #   print("INNN")
+      #   # print("INNN")
       #   news_vector = news.get_vector()
       #   for index in indexes_of_none_zero_terms:
       #     cosine += news_vector[index] * self.vector[index]
@@ -90,8 +144,8 @@ class NewsDocument:
       #     cosine = cosine / (norm * LA.norm(np.nonzero(news_vector)))
       #   else:
       #     cosine = NaN
-      #   self.news_cosines_distances[news]=cosine
-        
+      #   self.news_cosines_distances[news]=cosine  
+
   def get_top_nearest_news(self, count):
     # print(self.title)
     top_news = nlargest(count, self.news_cosines_distances, key = self.news_cosines_distances.get)
